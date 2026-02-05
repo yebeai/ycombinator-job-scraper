@@ -36,7 +36,7 @@ def send_keepalive_ping():
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
         message = client.messages.create(
-            body=".",
+            body="join safety-pig",
             from_=f'whatsapp:{TWILIO_PHONE_NUMBER}',
             to=f'whatsapp:{YOUR_PHONE_NUMBER}'
         )
