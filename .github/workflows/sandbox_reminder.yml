@@ -1,0 +1,40 @@
+name: Twilio Sandbox Reminder
+
+# Runs approximately every 71 hours to remind you to rejoin the Twilio sandbox
+# before the 72-hour free tier limit expires.
+#
+# Schedule explanation:
+# - Sunday 8 AM UTC
+# - Tuesday 8 AM UTC (48h after Sunday)
+# - Friday 7 AM UTC (71h after Tuesday)
+# This ensures no gap exceeds 71 hours.
+
+on:
+  schedule:
+    - cron: '0 8 * * 0,2'   # Sunday and Tuesday at 8 AM UTC
+    - cron: '0 7 * * 5'     # Friday at 7 AM UTC (71h after Tuesday)
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install twilio
+
+    - name: Send sandbox reminder
+      env:
+        TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+        TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+        TWILIO_PHONE_NUMBER: ${{ secrets.TWILIO_PHONE_NUMBER }}
+        YOUR_PHONE_NUMBER: ${{ secrets.YOUR_PHONE_NUMBER }}
+      run: python src/sandbox_reminder.py
