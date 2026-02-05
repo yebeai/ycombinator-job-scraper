@@ -1,17 +1,23 @@
 """
 Twilio Sandbox Keep-Alive
 
-Sends a minimal ping to keep the Twilio WhatsApp sandbox session active.
-The free tier expires after 72 hours of inactivity. This runs every 71 hours
-to maintain the connection automatically.
+Uses Selenium + Brave to send 'join safety-pig' to the Twilio sandbox number
+via WhatsApp Web, keeping the free tier session active (expires after 72 hours).
 
-Note: The Twilio API cannot send "join safety-pig" TO Twilio (that requires
-your WhatsApp app). But outbound messages from the sandbox keep it active.
+First run: Will show QR code - scan with your phone to log in.
+Subsequent runs: Uses saved session (no QR needed).
 """
 
-from twilio.rest import Client
-import os
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import logging
+import time
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -20,48 +26,79 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
-TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
-YOUR_PHONE_NUMBER = os.environ.get('YOUR_PHONE_NUMBER')
+# Twilio sandbox WhatsApp number (public number from Twilio docs)
+TWILIO_SANDBOX_NUMBER = "14155238886"
+
+# Directory to store WhatsApp Web session
+PROFILE_DIR = os.path.expanduser("~/.config/BraveSoftware/Brave-Browser/whatsapp_profile")
 
 
-def send_keepalive_ping():
+def setup_driver():
+    """Set up Brave browser with Selenium (reuses pattern from scraper.py)."""
+    options = Options()
+    options.binary_location = "/usr/bin/brave"
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument(f"--user-data-dir={PROFILE_DIR}")
+    # Uncomment for headless after first login:
+    # options.add_argument("--headless=new")
+
+    return webdriver.Chrome(options=options)
+
+
+def send_sandbox_join():
     """
-    Send a minimal message to keep the Twilio sandbox session active.
-    This prevents the 72-hour timeout on the free tier.
+    Send 'join safety-pig' to Twilio sandbox via WhatsApp Web.
     """
+    driver = None
     try:
-        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        logger.info("Starting Brave with WhatsApp Web...")
+        driver = setup_driver()
 
-        message = client.messages.create(
-            body="join safety-pig",
-            from_=f'whatsapp:{TWILIO_PHONE_NUMBER}',
-            to=f'whatsapp:{YOUR_PHONE_NUMBER}'
-        )
+        # Open WhatsApp Web with the Twilio sandbox number
+        url = f"https://web.whatsapp.com/send?phone={TWILIO_SANDBOX_NUMBER}&text=join%20safety-pig"
+        driver.get(url)
 
-        logger.info(f"Keep-alive ping sent: {message.sid}")
+        logger.info("Waiting for WhatsApp Web to load...")
+        logger.info("If first run, scan QR code with your phone within 5 minutes.")
+
+        # Wait for message input box (indicates logged in and chat loaded)
+        wait = WebDriverWait(driver, 300)  # 5 min timeout for QR scan
+        input_box = wait.until(EC.presence_of_element_located((
+            By.XPATH, '//div[@contenteditable="true"][@data-tab="10"] | //footer//div[@contenteditable="true"]'
+        )))
+
+        logger.info("WhatsApp Web loaded. Sending message...")
+        time.sleep(2)  # Brief pause for stability
+
+        # Press Enter to send the pre-filled message
+        input_box.send_keys(Keys.ENTER)
+
+        logger.info("Message sent! Waiting for confirmation...")
+        time.sleep(5)  # Wait for message to be sent
+
+        logger.info("'join safety-pig' sent to Twilio sandbox successfully!")
         return True
 
     except Exception as e:
-        logger.error(f"Failed to send keep-alive ping: {str(e)}")
+        logger.error(f"Failed to send message: {str(e)}")
         return False
+
+    finally:
+        if driver:
+            driver.quit()
 
 
 def main():
-    logger.info("Starting Twilio sandbox keep-alive")
+    logger.info("Starting Twilio sandbox keep-alive via Selenium")
 
-    if not all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, YOUR_PHONE_NUMBER]):
-        logger.error("Missing required environment variables")
-        return
-
-    success = send_keepalive_ping()
+    success = send_sandbox_join()
 
     if success:
-        logger.info("Keep-alive completed successfully")
+        logger.info("Sandbox join completed successfully")
     else:
-        logger.error("Keep-alive failed")
+        logger.error("Sandbox join failed")
 
 
 if __name__ == "__main__":
