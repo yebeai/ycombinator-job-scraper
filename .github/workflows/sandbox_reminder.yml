@@ -1,13 +1,9 @@
-name: Twilio Sandbox Reminder
+name: Twilio Sandbox Keep-Alive
 
-# Runs approximately every 71 hours to remind you to rejoin the Twilio sandbox
-# before the 72-hour free tier limit expires.
+# Sends a minimal ping every ~71 hours to keep the Twilio WhatsApp sandbox active.
+# The free tier expires after 72 hours of inactivity.
 #
-# Schedule explanation:
-# - Sunday 8 AM UTC
-# - Tuesday 8 AM UTC (48h after Sunday)
-# - Friday 7 AM UTC (71h after Tuesday)
-# This ensures no gap exceeds 71 hours.
+# Schedule: Sun 8AM, Tue 8AM, Fri 7AM UTC (no gap exceeds 71 hours)
 
 on:
   schedule:
